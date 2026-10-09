@@ -1,0 +1,390 @@
+<meta charset="utf-8">
+<!--
+  ============================================================
+  「わたしの校舎に、あの日の高さを」浸水高さ可視化アプリ
+  （修学旅行 事前学習・震災学習／岩手・三陸沿岸）
+  ============================================================
+  ・Google Sites の「埋め込み」にそのまま貼り付けて使える単一HTML。
+  ・校舎の写真を撮って「地面」と「基準の高さ」をタップすると、
+    三陸の記録にある高さを実寸の比率で写真に重ねる。写真がなくても図で使える。
+  ・高さの数値はすべて公的資料に基づく（出典は画面下部）。
+  ・カメラ映像はどこにも送信しない（端末の中だけで処理する）。
+  ============================================================
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap');
+
+  :root {
+    --ink: #202124;
+    --text: #3c4043;
+    --muted: #5f6368;
+    --line: #e8eaed;
+    --bg: #ffffff;
+    --soft: #f8f9fa;
+    --night: #1f2a37;
+    --primary: #1a73e8;
+    --primary-light: #e8f0fe;
+    --warn: #b06000;
+    --warn-light: #fef7e0;
+    --red: #c5221f;
+  }
+
+  .hp-wrap { font-family: 'Noto Sans JP', sans-serif; color: var(--text); background: var(--bg); max-width: 760px; margin: 0 auto; padding: 20px 16px 40px; line-height: 1.8; -webkit-font-smoothing: antialiased; }
+  .hp-wrap * { box-sizing: border-box; }
+  .hp-wrap h1 { font-size: 1.6rem; font-weight: 500; color: var(--ink); margin: 0 0 .5rem; line-height: 1.35; }
+  .hp-wrap h2 { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 1.8rem 0 .6rem; }
+  .hp-wrap p { margin: .5rem 0; }
+  .label { display: inline-block; background: var(--primary-light); color: var(--primary); font-size: .78rem; font-weight: 500; padding: 3px 10px; border-radius: 4px; margin-bottom: .8rem; }
+
+  .note { background: var(--soft); border-left: 4px solid var(--muted); padding: .8rem 1rem; border-radius: 4px; font-size: .92rem; margin: 1rem 0; }
+  .note.warn { border-left-color: var(--warn); background: var(--warn-light); }
+  .think { background: var(--primary-light); border-radius: 8px; padding: .8rem 1.1rem; margin: 1rem 0; font-size: .95rem; }
+  .think::before { content: "考えてみよう　"; font-weight: 700; color: var(--primary); }
+
+  .tabs { display: flex; gap: .5rem; margin: 1rem 0; flex-wrap: wrap; }
+  .tab { font: inherit; font-size: .95rem; padding: .55rem 1rem; border-radius: 20px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+  .tab.on { background: var(--night); border-color: var(--night); color: #fff; }
+
+  .btn { font: inherit; font-weight: 500; border: none; border-radius: 6px; padding: .6rem 1.2rem; cursor: pointer; background: var(--primary); color: #fff; display: inline-block; }
+  .btn.ghost { background: #fff; color: var(--text); border: 1px solid var(--line); }
+  .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .8rem 0; }
+
+  .field { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: .5rem 0; font-size: .95rem; }
+  .field input[type=number] { width: 6.5em; font: inherit; padding: .35rem .5rem; border: 1px solid var(--line); border-radius: 6px; }
+
+  .step-msg { background: var(--night); color: #fff; border-radius: 8px; padding: .6rem 1rem; font-size: .95rem; margin: .6rem 0; }
+
+  .stage { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--soft); }
+  .stage canvas { display: block; width: 100%; height: auto; touch-action: manipulation; }
+
+  .levels { display: grid; gap: .4rem; margin: .8rem 0; }
+  .lv { display: grid; grid-template-columns: auto 4.2em 1fr; gap: .6rem; align-items: center; font-size: .9rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .lv input { width: 18px; height: 18px; }
+  .lv .h { font-family: 'Roboto Mono', monospace; font-weight: 500; color: var(--ink); text-align: right; }
+  .lv .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: .4rem; vertical-align: -1px; }
+  .lv small { color: var(--muted); }
+
+  .calc { border: 1px dashed var(--muted); border-radius: 8px; padding: .8rem 1rem; margin: .8rem 0; font-size: .92rem; }
+  .calc b { color: var(--ink); }
+
+  .sources { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; }
+  .sources ol { padding-left: 1.3rem; }
+  .sources a { color: var(--muted); word-break: break-all; }
+  .hidden { display: none !important; }
+</style>
+
+<div class="hp-wrap">
+  <span class="label">修学旅行 事前学習｜岩手・三陸沿岸</span>
+  <h1>わたしの校舎に、あの日の高さを</h1>
+  <p>「津波の高さ16.3m」と聞いても、どのくらいの高さなのか、なかなか想像できません。このアプリでは、私たちが訪れる三陸の記録にある高さを、<b>自分の校舎の写真に、実際の比率で重ねて</b>表示します。</p>
+
+  <div class="note warn"><b>大切な注意：</b>ここで使う高さは、<b>海面からの高さ</b>（痕跡高や構造物の高さ）です。その場所の地面から水面までの深さ（浸水深）ではありません。このアプリでは「校舎の地面が海面と同じ高さにある」と仮定して線を引いています。実際にどこまで水が来るかは、土地の高さ（標高）によって変わります。</div>
+
+  <h2>1. 高さの「ものさし」をつくる</h2>
+  <p>写真の上で長さを測るには、高さが分かっている「ものさし」が必要です。おすすめは<b>校舎の1階分の高さ（階高）</b>です。自分で測ってみましょう。</p>
+  <div class="calc">
+    <b>階段で階高を測る</b>：1階から2階までの階段の段数と、1段の高さを測ります。<br>
+    <div class="field">段数 <input type="number" id="steps" min="1" step="1" placeholder="例 24"> 段 × 1段の高さ <input type="number" id="riser" min="1" step="0.1" placeholder="例 16"> cm
+      ＝ <b id="calcOut">— m</b> <button class="btn ghost" id="useCalc" type="button">この値を使う</button></div>
+    <small>※ 例の数字は入力のしかたを示すためのもので、実際の値ではありません。必ず自分で測りましょう。</small>
+  </div>
+  <div class="field">ものさしの高さ（1階の床 → 2階の床）<input type="number" id="refH" min="0.5" step="0.01" value="3.5"> m
+    <small style="color:var(--muted)">（初期値3.5mは仮の値です）</small></div>
+
+  <h2>2. 表示のしかたを選ぶ</h2>
+  <div class="tabs">
+    <button class="tab on" data-mode="photo" type="button">校舎の写真に重ねる</button>
+    <button class="tab" data-mode="diagram" type="button">図で見る（写真なし）</button>
+  </div>
+
+  <div id="photoPanel">
+    <p>校舎を<b>正面から、建物全体が入るように</b>撮影してください。端末のカメラで撮るか、撮っておいた写真を選びます。写真は端末の中だけで処理され、どこにも送信されません。</p>
+    <div class="btn-row">
+      <label class="btn" for="file">写真を撮る／選ぶ</label>
+      <input type="file" id="file" accept="image/*" capture="environment" class="hidden">
+      <button class="btn ghost hidden" id="recal" type="button">ものさしを取り直す</button>
+    </div>
+    <div class="step-msg hidden" id="msg"></div>
+  </div>
+
+  <div id="diagramPanel" class="hidden">
+    <div class="field">校舎の階数 <input type="number" id="floors" min="1" max="10" step="1" value="4"> 階建て</div>
+  </div>
+
+  <div class="stage hidden" id="stage"><canvas id="cv"></canvas></div>
+
+  <div id="controls" class="hidden">
+    <h2>3. 高さを重ねる</h2>
+    <p>線を表示したい高さを選びます。<b>名前をタップ</b>すると、その高さまで水位が上がっていきます。</p>
+    <div class="levels" id="levels"></div>
+    <div class="btn-row">
+      <button class="btn ghost" id="clearWater" type="button">水位を消す</button>
+      <a class="btn ghost" id="save" download="あの日の高さ.png">画像を保存</a>
+    </div>
+
+    <div class="think">あなたの校舎の何階まで線が届きましたか？ 14:49の第1報「3m」の線と、実際の記録の線との差を見て、「3mなら大丈夫」と思った人の気持ちを想像してみよう。</div>
+    <div class="think">あなたの学校の標高は何mだろう？ 国土地理院の「地理院地図」で調べると、自分の学校でこの線の意味がどう変わるかが分かります。</div>
+    <div class="think">現地で田老の防潮堤（10m）や普代水門（15.5m）を見上げたら、この写真の線と比べてみよう。それを越えた津波の高さを、体で感じられるだろうか。</div>
+  </div>
+
+  <div class="sources">
+    <b>出典</b>
+    <ol>
+      <li>気象庁「津波警報の改善の方向性について」（2011年9月12日）<br><a href="https://www.jma.go.jp/jma/press/1109/12a/torimatome.pdf" target="_blank" rel="noopener">https://www.jma.go.jp/jma/press/1109/12a/torimatome.pdf</a></li>
+      <li>気象庁 報道発表（宮古・大船渡の津波観測記録の回収）2011年4月5日<br><a href="https://www.jma.go.jp/jma/press/1104/05a/tsunami20110405.pdf" target="_blank" rel="noopener">https://www.jma.go.jp/jma/press/1104/05a/tsunami20110405.pdf</a></li>
+      <li>岩手県 田老海岸の防潮堤に関する資料<br><a href="https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/009/884/202109_tashiro.pdf" target="_blank" rel="noopener">https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/009/884/202109_tashiro.pdf</a></li>
+      <li>岩手県 普代水門に関する資料<br><a href="https://www.pref.iwate.jp/area/dbps_data/_material_/_files/000/000/042/960/270817.pdf" target="_blank" rel="noopener">https://www.pref.iwate.jp/area/dbps_data/_material_/_files/000/000/042/960/270817.pdf</a></li>
+      <li>岩手県 いわての復興教育 教材（普代水門）<br><a href="https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/015/029/koukou1.pdf" target="_blank" rel="noopener">https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/015/029/koukou1.pdf</a></li>
+    </ol>
+    高さはいずれも海面などを基準とした値で、その場所の地面からの浸水の深さではありません。観測値は「記録できた範囲の最大値」で、実際はさらに高かった可能性があります。写真への重ね合わせは、撮影の角度などにより誤差を含む目安です。
+  </div>
+</div>
+
+<script>
+(function () {
+  // ------------------------------------------------------------
+  // 公的記録に基づく高さ（出典番号は下部の出典リストと対応）
+  // ------------------------------------------------------------
+  var LEVELS = [
+    { h: 3,    name: "14:49 第1報の予想（岩手県）",  note: "大津波警報で発表された予想の高さ [1]",               color: "#1a73e8", on: true },
+    { h: 8.5,  name: "宮古で観測した津波",            note: "記録できた範囲の最大値。実際はさらに高かった可能性 [2]", color: "#7b61ff", on: false },
+    { h: 10,   name: "田老の防潮堤の高さ",            note: "海面基準の高さ。長さ約2.4km [3]",                    color: "#5f6368", on: true },
+    { h: 15.5, name: "普代水門の高さ",                note: "1984年完成 [4]",                                     color: "#1e8e3e", on: false },
+    { h: 16.3, name: "田老の津波痕跡（最大）",        note: "防潮堤を越えた津波の痕跡の高さ [3]",                  color: "#c5221f", on: true },
+    { h: 23.6, name: "普代水門の津波痕跡",            note: "水門を越えた津波の痕跡の高さ [5]",                    color: "#b06000", on: false }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $("cv"), ctx = cv.getContext("2d");
+  var mode = "photo";
+  var img = null;
+  var cal = { ground: null, ref: null };   // 写真上のy座標（キャンバス座標）
+  var water = 0, waterTarget = 0, anim = null;
+
+  function refH() { var v = parseFloat($("refH").value); return v > 0 ? v : 3.5; }
+
+  // ---- 階段からの計算 ----
+  function calc() {
+    var s = parseFloat($("steps").value), r = parseFloat($("riser").value);
+    var m = (s > 0 && r > 0) ? (s * r / 100) : null;
+    $("calcOut").textContent = m ? m.toFixed(2) + " m" : "— m";
+    return m;
+  }
+  $("steps").oninput = $("riser").oninput = calc;
+  $("useCalc").onclick = function () { var m = calc(); if (m) { $("refH").value = m.toFixed(2); draw(); } };
+  $("refH").oninput = draw;
+
+  // ---- 高さリスト ----
+  function buildLevels() {
+    var box = $("levels");
+    box.innerHTML = "";
+    LEVELS.forEach(function (lv, i) {
+      var row = document.createElement("label");
+      row.className = "lv";
+      row.innerHTML = "<input type='checkbox' " + (lv.on ? "checked" : "") + ">" +
+        "<span class='h'>" + lv.h + "m</span>" +
+        "<span><span class='sw' style='background:" + lv.color + "'></span><b class='nm'>" + lv.name + "</b><br><small>" + lv.note + "</small></span>";
+      var cb = row.querySelector("input");
+      cb.onchange = function () { lv.on = cb.checked; draw(); };
+      row.querySelector(".nm").onclick = function (e) { e.preventDefault(); lv.on = true; cb.checked = true; raise(lv.h); };
+      box.appendChild(row);
+    });
+  }
+
+  // ---- 水位アニメーション ----
+  function raise(h) {
+    waterTarget = h;
+    if (anim) cancelAnimationFrame(anim);
+    var start = null, from = water, dur = 2500;
+    function tick(t) {
+      if (!start) start = t;
+      var k = Math.min(1, (t - start) / dur);
+      water = from + (waterTarget - from) * (1 - Math.pow(1 - k, 2));
+      draw();
+      if (k < 1) anim = requestAnimationFrame(tick);
+    }
+    anim = requestAnimationFrame(tick);
+  }
+  $("clearWater").onclick = function () { if (anim) cancelAnimationFrame(anim); water = waterTarget = 0; draw(); };
+
+  // ---- モード切替 ----
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) {
+    t.onclick = function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (x) { x.classList.remove("on"); });
+      t.classList.add("on");
+      mode = t.getAttribute("data-mode");
+      $("photoPanel").classList.toggle("hidden", mode !== "photo");
+      $("diagramPanel").classList.toggle("hidden", mode !== "diagram");
+      if (mode === "diagram") { showStage(); } else { $("stage").classList.toggle("hidden", !img); $("controls").classList.toggle("hidden", !(img && ready())); }
+      draw();
+    };
+  });
+  $("floors").oninput = draw;
+
+  function showStage() { $("stage").classList.remove("hidden"); $("controls").classList.remove("hidden"); }
+  function ready() { return cal.ground !== null && cal.ref !== null && cal.ground - cal.ref > 5; }
+
+  // ---- 写真の読み込み ----
+  $("file").onchange = function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var url = URL.createObjectURL(f);
+    var im = new Image();
+    im.onload = function () {
+      img = im;
+      var maxW = 1200, s = Math.min(1, maxW / im.width);
+      cv.width = Math.round(im.width * s);
+      cv.height = Math.round(im.height * s);
+      resetCal();
+      $("stage").classList.remove("hidden");
+      $("recal").classList.remove("hidden");
+      draw();
+    };
+    im.src = url;
+  };
+  $("recal").onclick = function () { resetCal(); draw(); };
+
+  function resetCal() {
+    cal.ground = cal.ref = null;
+    $("controls").classList.add("hidden");
+    msg("① 写真の中で、校舎の<b>地面（1階の床の高さ）</b>をタップしてください。");
+  }
+  function msg(html) { var m = $("msg"); m.innerHTML = html; m.classList.toggle("hidden", !html); }
+
+  cv.addEventListener("click", function (e) {
+    if (mode !== "photo" || !img) return;
+    var r = cv.getBoundingClientRect();
+    var y = (e.clientY - r.top) * (cv.height / r.height);
+    if (cal.ground === null) {
+      cal.ground = y;
+      msg("② 次に、<b>2階の床の高さ</b>（ものさしの上端）をタップしてください。2階の窓の下端あたりが目安です。");
+    } else if (cal.ref === null) {
+      if (y >= cal.ground - 5) { msg("② 地面より<b>上</b>の位置をタップしてください。"); return; }
+      cal.ref = y;
+      msg("");
+      $("controls").classList.remove("hidden");
+    }
+    draw();
+  });
+
+  // ---- 描画 ----
+  function draw() {
+    if (mode === "photo") drawPhoto(); else drawDiagram();
+    try { $("save").href = cv.toDataURL("image/png"); } catch (e) {}
+  }
+
+  function lineAt(y, w, color, text, x0) {
+    ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, w / 300);
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x0 || 0, y); ctx.lineTo(w, y); ctx.stroke();
+    var fs = Math.max(13, Math.round(w / 45));
+    ctx.font = "700 " + fs + "px 'Noto Sans JP', sans-serif";
+    var tw = ctx.measureText(text).width;
+    var tx = w - tw - fs * 0.8, ty = y - fs * 0.35;
+    ctx.fillStyle = "rgba(255,255,255,.88)";
+    ctx.fillRect(tx - fs * 0.35, ty - fs * 1.05, tw + fs * 0.7, fs * 1.35);
+    ctx.fillStyle = color; ctx.fillText(text, tx, ty);
+  }
+
+  function offTop(lv, extra, w) {
+    var fs = Math.max(13, Math.round(w / 45));
+    ctx.font = "700 " + fs + "px 'Noto Sans JP', sans-serif";
+    var text = "↑ " + lv.h + "m " + lv.name + "（画面の外、さらに約" + extra.toFixed(1) + "m上）";
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    var tw = ctx.measureText(text).width;
+    ctx.fillRect(fs * 0.4, offTop.y - fs, tw + fs * 0.6, fs * 1.4);
+    ctx.fillStyle = lv.color; ctx.fillText(text, fs * 0.7, offTop.y + fs * 0.1);
+    offTop.y += fs * 1.6;
+  }
+
+  function drawWater(groundY, ppm, w, h) {
+    if (water <= 0) return;
+    var top = groundY - water * ppm;
+    ctx.fillStyle = "rgba(26, 82, 118, 0.38)";
+    ctx.fillRect(0, Math.max(0, top), w, h - Math.max(0, top));
+    var fs = Math.max(16, Math.round(w / 28));
+    ctx.font = "700 " + fs + "px 'Roboto Mono', monospace";
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 4;
+    var t = "水位 " + water.toFixed(1) + "m";
+    var ty = Math.min(h - fs * 0.6, Math.max(fs * 1.2, top + fs * 1.3));
+    ctx.strokeText(t, fs * 0.6, ty); ctx.fillText(t, fs * 0.6, ty);
+  }
+
+  function drawLevels(groundY, ppm, w, x0) {
+    offTop.y = Math.max(16, Math.round(w / 45)) * 1.3;
+    LEVELS.forEach(function (lv) {
+      if (!lv.on) return;
+      var y = groundY - lv.h * ppm;
+      if (y < 4) offTop(lv, (4 - y) / ppm, w);
+      else lineAt(y, w, lv.color, lv.h + "m " + lv.name, x0);
+    });
+  }
+
+  function drawPhoto() {
+    if (!img) return;
+    var w = cv.width, h = cv.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    if (cal.ground !== null) {
+      ctx.setLineDash([8, 6]); ctx.strokeStyle = "#ffeb3b"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, cal.ground); ctx.lineTo(w, cal.ground); ctx.stroke();
+    }
+    if (cal.ref !== null) {
+      ctx.beginPath(); ctx.moveTo(0, cal.ref); ctx.lineTo(w, cal.ref); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (!ready()) return;
+    var ppm = (cal.ground - cal.ref) / refH();
+    drawWater(cal.ground, ppm, w, h);
+    drawLevels(cal.ground, ppm, w, 0);
+  }
+
+  function drawDiagram() {
+    var floors = Math.max(1, Math.min(10, parseInt($("floors").value, 10) || 4));
+    var fh = refH();
+    var maxH = Math.max(25, floors * fh + 2);
+    var w = 900, ppm = 26, top = 30, groundY = top + maxH * ppm, h = groundY + 40;
+    cv.width = w; cv.height = h;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, w, h);
+
+    // 目盛り（5mごと）
+    ctx.font = "500 13px 'Roboto Mono', monospace";
+    for (var m = 0; m <= maxH; m += 5) {
+      var y = groundY - m * ppm;
+      ctx.strokeStyle = "#e8eaed"; ctx.lineWidth = 1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(w, y); ctx.stroke();
+      ctx.fillStyle = "#5f6368"; ctx.fillText(m + "m", 8, y + 4);
+    }
+
+    // 校舎
+    var bx = 140, bw = 300;
+    for (var f = 0; f < floors; f++) {
+      var fy = groundY - (f + 1) * fh * ppm;
+      ctx.fillStyle = "#f1f3f4"; ctx.strokeStyle = "#9aa0a6"; ctx.lineWidth = 2;
+      ctx.fillRect(bx, fy, bw, fh * ppm); ctx.strokeRect(bx, fy, bw, fh * ppm);
+      ctx.fillStyle = "#c6dafc";
+      for (var k = 0; k < 5; k++) ctx.fillRect(bx + 18 + k * 56, fy + fh * ppm * 0.28, 38, fh * ppm * 0.42);
+      ctx.fillStyle = "#3c4043"; ctx.font = "700 14px 'Noto Sans JP', sans-serif";
+      ctx.fillText((f + 1) + "階", bx - 40, fy + fh * ppm / 2 + 5);
+    }
+
+    // 人（身長1.7mの人の目安）
+    var px = 480, ph = 1.7 * ppm;
+    ctx.fillStyle = "#3c4043";
+    ctx.beginPath(); ctx.arc(px, groundY - ph + 6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(px - 4, groundY - ph + 12, 8, ph - 12);
+    ctx.font = "12px 'Noto Sans JP', sans-serif"; ctx.fillText("身長1.7mの人", px + 10, groundY - 4);
+
+    // 地面
+    ctx.strokeStyle = "#202124"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(50, groundY); ctx.lineTo(w, groundY); ctx.stroke();
+
+    drawWater(groundY, ppm, w, h);
+    drawLevels(groundY, ppm, w, 50);
+  }
+
+  buildLevels();
+  msg("");
+})();
+</script>
