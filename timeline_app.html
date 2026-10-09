@@ -1,0 +1,450 @@
+<meta charset="utf-8">
+<!--
+  ============================================================
+  14:46からの30分 ― 判断タイムライン（修学旅行 事前学習・震災学習）
+  ============================================================
+  ・Google Sites の「埋め込み」にそのまま貼り付けて使える単一HTML。
+  ・表示する時刻・警報・観測値は公的資料に基づく（出典は画面下部）。
+  ・生徒の状況（自宅にいる等）は仮の設定。創作した「事実」は含めない。
+  ・最後に1行の記録（CSV）が出るので、クラスのスプレッドシートに貼って集計できる。
+  ============================================================
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Roboto+Mono:wght@500&display=swap');
+
+  :root {
+    --ink: #202124;
+    --text: #3c4043;
+    --muted: #5f6368;
+    --line: #e8eaed;
+    --bg: #ffffff;
+    --soft: #f8f9fa;
+    --night: #1f2a37;
+    --primary: #1a73e8;
+    --primary-light: #e8f0fe;
+    --warn: #b06000;
+    --warn-light: #fef7e0;
+    --red: #c5221f;
+    --red-light: #fce8e6;
+    --green: #1e8e3e;
+  }
+
+  .tl-wrap {
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+  .tl-wrap * { box-sizing: border-box; }
+  .tl-wrap h1 { font-size: 1.6rem; font-weight: 500; color: var(--ink); margin: 0 0 .5rem; line-height: 1.35; }
+  .tl-wrap h2 { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin: 1.6rem 0 .6rem; }
+  .tl-wrap p { margin: .5rem 0; }
+
+  .label { display: inline-block; background: var(--primary-light); color: var(--primary); font-size: .78rem; font-weight: 500; padding: 3px 10px; border-radius: 4px; margin-bottom: .8rem; }
+
+  .note { background: var(--soft); border-left: 4px solid var(--muted); padding: .8rem 1rem; border-radius: 4px; font-size: .92rem; margin: 1rem 0; }
+  .note.care { border-left-color: var(--warn); background: var(--warn-light); }
+
+  /* 時計バー */
+  .clock { background: var(--night); color: #fff; border-radius: 10px; padding: 1rem 1.25rem; display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .clock-time { font-family: 'Roboto Mono', monospace; font-size: 2.6rem; letter-spacing: .04em; line-height: 1; }
+  .clock-sub { font-size: .85rem; color: rgba(255,255,255,.75); }
+  .progress { display: flex; gap: 6px; margin: 0 0 1.25rem; }
+  .progress span { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .progress span.on { background: var(--night); }
+
+  /* 事実カード（公的記録） */
+  .fact { border: 1px solid var(--line); border-radius: 8px; padding: .9rem 1.1rem; margin: .8rem 0; }
+  .fact-head { font-size: .75rem; font-weight: 700; color: var(--red); letter-spacing: .06em; margin-bottom: .3rem; }
+  .fact ul { margin: .2rem 0; padding-left: 1.2rem; }
+  .fact li { margin: .25rem 0; }
+  .fact .src { font-size: .75rem; color: var(--muted); margin-top: .4rem; }
+  .big { font-weight: 700; color: var(--ink); }
+
+  .setting { border: 1px dashed var(--muted); border-radius: 8px; padding: .8rem 1.1rem; margin: .8rem 0; font-size: .95rem; }
+  .setting-head { font-size: .75rem; font-weight: 700; color: var(--muted); letter-spacing: .06em; }
+
+  .question { font-size: 1.1rem; font-weight: 700; color: var(--ink); margin: 1.4rem 0 .6rem; }
+  .think { background: var(--primary-light); border-radius: 8px; padding: .8rem 1.1rem; margin: 1rem 0; font-size: .95rem; }
+  .think::before { content: "考えてみよう　"; font-weight: 700; color: var(--primary); }
+
+  .choices { display: grid; gap: .6rem; }
+  .choice { text-align: left; font: inherit; font-size: 1rem; color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: .85rem 1rem; cursor: pointer; transition: border-color .15s, background .15s; }
+  .choice:hover { border-color: var(--primary); background: var(--primary-light); }
+  .choice:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  .btn { font: inherit; font-weight: 500; border: none; border-radius: 6px; padding: .7rem 1.4rem; cursor: pointer; background: var(--primary); color: #fff; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1.4rem; }
+
+  /* 結果 */
+  .path { list-style: none; padding: 0; margin: .6rem 0; border-left: 3px solid var(--night); }
+  .path li { padding: .35rem 0 .35rem 1rem; position: relative; }
+  .path li::before { content: ""; position: absolute; left: -7px; top: .85rem; width: 11px; height: 11px; border-radius: 50%; background: var(--night); }
+  .path time { font-family: 'Roboto Mono', monospace; font-weight: 500; color: var(--ink); margin-right: .6rem; }
+
+  .bars { margin: .8rem 0; }
+  .bar-row { display: grid; grid-template-columns: 9.5em 1fr 3em; align-items: center; gap: .6rem; margin: .45rem 0; font-size: .9rem; }
+  .bar-track { background: var(--soft); border-radius: 4px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #9aa0a6; border-radius: 4px; }
+  .bar-row.me .bar-fill { background: var(--night); }
+  .bar-row.me .bar-name { font-weight: 700; color: var(--ink); }
+  .bar-row.me .bar-name::after { content: " ← あなた"; color: var(--red); font-size: .8rem; }
+  .bar-pct { text-align: right; font-family: 'Roboto Mono', monospace; }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .8rem 0; }
+  .compare div { border-radius: 8px; padding: .8rem; text-align: center; }
+  .compare .a { background: var(--soft); }
+  .compare .b { background: var(--red-light); }
+  .compare .n { font-family: 'Roboto Mono', monospace; font-size: 1.6rem; font-weight: 500; color: var(--ink); }
+  .compare .c { font-size: .8rem; color: var(--muted); }
+
+  .csv { width: 100%; font-family: 'Roboto Mono', monospace; font-size: .85rem; padding: .7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); resize: none; }
+
+  .sources { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; }
+  .sources ol { padding-left: 1.3rem; }
+  .sources a { color: var(--muted); word-break: break-all; }
+
+  /* 生成画像 */
+  .hero { position: relative; border-radius: 10px; overflow: hidden; margin-bottom: 1rem; background: var(--night); aspect-ratio: 16 / 9; }
+  .hero img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,20,28,.85) 0%, rgba(15,20,28,0) 55%); pointer-events: none; }
+  .hero .clock { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; background: transparent; z-index: 1; }
+  .hero.noimg { aspect-ratio: auto; background: transparent; }
+  .hero.noimg img, .hero.noimg .gen, .hero.noimg::after { display: none; }
+  .hero.noimg .clock { position: static; background: var(--night); }
+  .gen { position: absolute; top: 8px; right: 8px; z-index: 1; font-size: .7rem; color: #fff; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 3px; letter-spacing: .04em; }
+
+  .choices.cards { grid-template-columns: 1fr 1fr; }
+  .choice.card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .choice.card .thumb { position: relative; aspect-ratio: 16 / 9; background: var(--soft); }
+  .choice.card .thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+  .choice.card:hover .thumb img { transform: scale(1.04); }
+  .choice.card .ct { padding: .7rem .9rem; }
+  .choice.card .gen { top: 6px; right: 6px; font-size: .62rem; }
+
+  .path-thumb { display: block; width: 100%; max-width: 260px; border-radius: 6px; margin: .3rem 0 .2rem; }
+
+  .hidden { display: none; }
+  .fade { animation: fade .4s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 520px) {
+    .clock-time { font-size: 2.1rem; }
+    .bar-row { grid-template-columns: 7.5em 1fr 2.8em; font-size: .82rem; }
+    .choices.cards { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="tl-wrap" id="app"></div>
+
+<script>
+(function () {
+  // ------------------------------------------------------------
+  // 公的記録に基づく事実（出典番号は下部 SOURCES と対応）
+  // ------------------------------------------------------------
+  var STEPS = [
+    {
+      time: "14:46", elapsed: "地震発生",
+      facts: [
+        "三陸沖を震源とする巨大地震が発生。<span class='big'>宮城県栗原市で震度7</span>を観測。",
+        "気象庁はこの時点で、地震の規模を <span class='big'>M7.9</span> と推定していた（のちに <span class='big'>M9.0</span> と判明）。"
+      ],
+      src: [1, 2],
+      img: "01_1446_scene",
+      setting: "あなたは岩手県の三陸沿岸の町に住んでいる。町は、宮古市田老のように高さ10mの防潮堤に守られている。いま、海岸から歩いて10分ほどの自宅に一人でいる。家具が倒れ、食器が割れて床に散らばった。家族は仕事や買い物で外出している。",
+      question: "長い揺れがおさまった。最初に何をする？",
+      choices: [
+        { id: "evac",   text: "すぐに高台へ逃げる", img: "02_1446_evac" },
+        { id: "info",   text: "テレビやラジオをつけて、情報を確かめる", img: "03_1446_info" },
+        { id: "family", text: "家族に電話やメールをして、無事を確かめる", img: "04_1446_family" },
+        { id: "tidy",   text: "割れた食器を片付け、貴重品をまとめる", img: "05_1446_tidy" }
+      ]
+    },
+    {
+      time: "14:49", elapsed: "地震から3分",
+      facts: [
+        "気象庁が<span class='big'>大津波警報（第1報）</span>を発表。",
+        "予想される津波の高さ：<span class='big'>岩手県 3m ／ 宮城県 6m ／ 福島県 3m</span>",
+        "国の専門調査会は、のちに「第1報で発表した『予想される津波の高さ3m』が避難の遅れにつながったと考えられる」と報告している。"
+      ],
+      src: [2, 3],
+      img: "06_1449_scene", imgEvac: "11_1449e_scene",
+      question: "大津波警報が出た。どうする？",
+      questionEvac: "高台へ向かっている途中。近所の人たちは、まだ家の前で話している。どうする？",
+      choices: [
+        { id: "evac",     text: "今すぐ逃げる", img: "07_1449_evac" },
+        { id: "wait",     text: "予想は3m。防潮堤もあるし、もう少し様子を見る", img: "08_1449_wait" },
+        { id: "family",   text: "家族が帰ってくるのを待つ／迎えに行く", img: "09_1449_family" },
+        { id: "neighbor", text: "一人暮らしのお年寄りの家に、声をかけに行く", img: "10_1449_neighbor" }
+      ],
+      choicesEvac: [
+        { id: "call", text: "声をかけて、一緒に逃げるよう呼びかける", img: "12_1449e_call" },
+        { id: "go",   text: "自分の避難を優先して、先を急ぐ", img: "13_1449e_go" }
+      ]
+    },
+    {
+      time: "15:14", elapsed: "地震から28分",
+      facts: [
+        "15時10分頃、岩手県の沖合約10kmにあるGPS波浪計が、潮位の急激な上昇を観測。",
+        "15時14分、気象庁が警報を更新（<span class='big'>第2報</span>）。予想される津波の高さ：<span class='big'>宮城県 10m以上 ／ 岩手県 6m ／ 福島県 6m</span>"
+      ],
+      src: [2, 3],
+      img: "14_1514_scene", imgEvac: "18_1514e_scene",
+      think: "この第2報は、あなたに届いているだろうか？ 停電していたら、何から情報を得られるだろう？",
+      question: "第1報から25分がたった。どうする？",
+      questionEvac: "高台に着いた。家に大事なものを置いてきたことを思い出した。どうする？",
+      choices: [
+        { id: "evac",   text: "今すぐ逃げる", img: "15_1514_evac" },
+        { id: "upstairs", text: "家の2階に上がれば大丈夫。家にとどまる", img: "16_1514_upstairs" },
+        { id: "family", text: "まだ家族を待つ", img: "17_1514_family" }
+      ],
+      choicesEvac: [
+        { id: "stay",   text: "取りに戻らない。ここにとどまる", img: "19_1514e_stay" },
+        { id: "return", text: "まだ時間はあるはず。取りに戻る", img: "20_1514e_return" }
+      ]
+    }
+  ];
+
+  var REVEAL = {
+    facts: [
+      "宮古（岩手県）で <span class='big'>8.5m以上</span>、大船渡（岩手県）で <span class='big'>8.0m以上</span> の津波を観測。いずれも記録できた範囲の最大値で、実際はさらに高かった可能性がある。",
+      "宮古市田老の防潮堤（高さ10m・長さ約2.4km、「万里の長城」と呼ばれた）を津波が越えた。痕跡から確認された高さは<span class='big'>最大16.3m</span>。",
+      "普代村の普代水門（高さ15.5m）では、<span class='big'>23.6m</span>の津波痕跡高が記録され、津波は水門を越えた。それでも水門が津波の力を弱め、上流側の市街地や普代小・中学校は被害を免れた。"
+    ],
+    src: [4, 5, 6, 7]
+  };
+
+  // 行き先とのつながり（事実＋現地での問い）
+  var PLACES = [
+    {
+      name: "宮古市田老（グリーンピア三陸みやこ）",
+      facts: [
+        "高さ10m・長さ約2.4kmの防潮堤を津波が越え、痕跡の高さは最大16.3mだった。[5]",
+        "田老地区の死者・行方不明者は185人（2011年8月3日時点の報告）。[10]",
+        "住民は高台のグリーンピア三陸みやこへ避難した。指定避難所は体育館だったが、当日は非常に寒く、避難者はホテル内の廊下などに入った（宮古市職員の証言）。[9]"
+      ],
+      q: "「防潮堤があるから大丈夫」という気持ちは、あの日の判断にどう影響しただろう？ アプリで「様子を見る」を選んだ人は、その理由と重ねて考えてみよう。"
+    },
+    {
+      name: "普代水門（普代村）",
+      facts: [
+        "1984年に完成。計画当時、防潮堤などの一般的な高さは10m前後だったが、当時の和村幸得村長らの強い要望で15.5mになった。[6]",
+        "2011年、津波は水門を越えたが、上流側の市街地や小・中学校は被害を免れた。[7]"
+      ],
+      q: "「10mで十分」とされた時代に、なぜ15.5mにこだわれたのか？ 田老と普代の違いは「高さ」だけだろうか？ 地形や避難のしかたなど、他の要因も現地で確かめよう。"
+    },
+    {
+      name: "ホテル羅賀荘（田野畑村）",
+      facts: [
+        "海に面したこのホテルも東日本大震災で被災し、その後、営業を再開した。"
+      ],
+      q: "泊まる部屋の窓から海を見て、あの日の津波を想像してみよう。話を聞く機会があれば、建物や地域があの日からどう立ち直ってきたのかを聞いてみよう。"
+    },
+    {
+      name: "三陸復興国立公園",
+      facts: [
+        "2013年5月、陸中海岸国立公園を拡張する形で指定された。震災からの復興に役立つことを目的の一つとしている。[11]"
+      ],
+      q: "同じ海が、命を奪う力と、恵みや美しさの両方を持っている。この公園の名前に「復興」が入っているのはなぜだろう？"
+    }
+  ];
+
+  // 内閣府・消防庁・気象庁「東日本大震災における避難行動等に関する面接調査」（2011年7月、岩手・宮城・福島で避難した870人）
+  var SURVEY = [
+    { key: "A", name: "直後避難",   pct: 57, desc: "揺れがおさまった直後にすぐ避難した" },
+    { key: "B", name: "用事後避難", pct: 31, desc: "何かの用事を済ませてから避難した" },
+    { key: "C", name: "切迫避難",   pct: 11, desc: "何かをしている最中に津波が迫り、避難した" },
+    { key: "D", name: "避難せず",   pct: 1,  desc: "高台など避難の必要がない場所にいた" }
+  ];
+
+  var REASONS = [
+    "揺れの大きさ", "大津波警報の内容", "家族のこと", "周りの人の様子",
+    "「3m」「防潮堤」などの数字や設備", "家や持ち物のこと", "うまく言えない"
+  ];
+
+  var SOURCES = [
+    ["気象庁「平成23年（2011年）東北地方太平洋沖地震」関連報道発表資料", "https://www.jma.go.jp/jma/press/1104/08a/1103tohokuoki.pdf"],
+    ["気象庁「津波警報の改善の方向性について」（2011年9月12日）", "https://www.jma.go.jp/jma/press/1109/12a/torimatome.pdf"],
+    ["内閣府 中央防災会議 東北地方太平洋沖地震を教訓とした地震・津波対策に関する専門調査会 資料", "https://www.bousai.go.jp/kaigirep/chousakai/tohokukyokun/8/pdf/2.pdf"],
+    ["気象庁 報道発表（宮古・大船渡の津波観測記録の回収）2011年4月5日", "https://www.jma.go.jp/jma/press/1104/05a/tsunami20110405.pdf"],
+    ["岩手県 田老海岸の防潮堤に関する資料", "https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/009/884/202109_tashiro.pdf"],
+    ["岩手県 普代水門に関する資料", "https://www.pref.iwate.jp/area/dbps_data/_material_/_files/000/000/042/960/270817.pdf"],
+    ["岩手県 いわての復興教育 教材（普代水門）", "https://www.pref.iwate.jp/_res/projects/default_project/_page_/001/015/029/koukou1.pdf"],
+    ["内閣府「平成23年東日本大震災における避難行動等に関する面接調査（住民）分析結果」", "https://www.bousai.go.jp/kaigirep/chousakai/tohokukyokun/7/pdf/1.pdf"],
+    ["内閣府 防災情報「一日前プロジェクト」宮古市職員の証言", "https://www.bousai.go.jp/kyoiku/keigen/ichinitimae/thh25019.html"],
+    ["消防科学総合センター 東日本大震災 被災地調査報告", "https://www.bousaihaku.com/pdf/report-worker/higashinihon_komatsu.pdf"],
+    ["環境省 報道発表（三陸復興国立公園の指定）", "https://www.env.go.jp/press/16492.html"]
+  ];
+
+  // ------------------------------------------------------------
+  var app = document.getElementById("app");
+  var state;
+
+  function reset() {
+    state = { step: 0, evacAt: null, picks: [], reason: null };
+  }
+
+  function srcMark(list) {
+    return "<div class='src'>出典：" + list.map(function (n) { return "[" + n + "]"; }).join(" ") + "</div>";
+  }
+
+  function progress(active) {
+    var html = "<div class='progress'>";
+    for (var i = 0; i < 5; i++) html += "<span class='" + (i <= active ? "on" : "") + "'></span>";
+    return html + "</div>";
+  }
+
+  function sourcesHtml() {
+    var html = "<div class='sources'><b>出典</b><ol>";
+    SOURCES.forEach(function (s) { html += "<li>" + s[0] + "<br><a href='" + s[1] + "' target='_blank' rel='noopener'>" + s[1] + "</a></li>"; });
+    return html + "</ol>時刻・警報・観測値は上記の公的資料に基づく。観測値は後日修正されることがある。あなたの状況（自宅にいる等）は学習用の仮の設定。</div>";
+  }
+
+  function render(html) {
+    app.innerHTML = "<div class='fade'>" + html + "</div>" + sourcesHtml();
+    app.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // ---- 生成画像 ----
+  // 画像は img/ フォルダの JPG。Google Sites 用には tools/build_sites.ps1 で HTML に埋め込む。
+  var IMG_DATA = {};
+  function imgSrc(key) { return IMG_DATA[key] || ("img/" + key + ".jpg"); }
+  function hero(key, inner) {
+    if (!key) return inner;
+    return "<div class='hero'><img src='" + imgSrc(key) + "' alt='' onerror='this.parentNode.classList.add(\"noimg\")'><span class='gen'>生成イメージ</span>" + inner + "</div>";
+  }
+
+  // ---- 導入 ----
+  function intro() {
+    reset();
+    render(
+      "<span class='label'>修学旅行 事前学習｜岩手・三陸沿岸</span>" +
+      "<h1>14:46からの30分</h1>" +
+      "<p>私たちが訪れる宮古市田老・田野畑村・普代村は、2011年3月11日に津波に襲われた三陸沿岸の町です。あの日、沿岸の人々に届いた情報を、<b>実際に発表された順番</b>でたどります。あなたは各時点で、その時に分かっていた情報だけをもとに判断してください。</p>" +
+      "<div class='note'>赤い見出しの「記録」は、気象庁などの公的資料に基づく事実です。点線の枠の「設定」と、「生成イメージ」と書かれた画像は、学習のための仮の状況です。<b>画像はAIで生成したイメージで、2011年の実際の写真ではありません。</b></div>" +
+      "<div class='note care'>この教材には、津波の被害についての記述があります。読んでいてつらくなったら、途中でやめてかまいません。近くの先生に声をかけてください。</div>" +
+      "<p>正解を当てるゲームではありません。<b>「その場にいたら、自分はどうするか」</b>を正直に選んでください。</p>" +
+      "<div class='btn-row'><button class='btn' id='start'>はじめる</button></div>"
+    );
+    document.getElementById("start").onclick = function () { step(0); };
+  }
+
+  // ---- 各時点 ----
+  function step(i) {
+    state.step = i;
+    var s = STEPS[i];
+    var evacuated = state.evacAt !== null;
+    var q = evacuated && s.questionEvac ? s.questionEvac : s.question;
+    var cs = evacuated && s.choicesEvac ? s.choicesEvac : s.choices;
+
+    var scene = evacuated && s.imgEvac ? s.imgEvac : s.img;
+    var html = progress(i) +
+      hero(scene, "<div class='clock'><span class='clock-time'>" + s.time + "</span><span class='clock-sub'>2011年3月11日　" + s.elapsed + "</span></div>") +
+      "<div class='fact'><div class='fact-head'>記録</div><ul>" + s.facts.map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>" + srcMark(s.src) + "</div>";
+    if (s.setting) html += "<div class='setting'><div class='setting-head'>設定（仮の状況）</div>" + s.setting + "</div>";
+    if (s.think) html += "<div class='think'>" + s.think + "</div>";
+    html += "<div class='question'>" + q + "</div><div class='choices cards'>";
+    cs.forEach(function (c, k) {
+      html += "<button class='choice card' data-k='" + k + "'>" +
+        (c.img ? "<span class='thumb'><img src='" + imgSrc(c.img) + "' alt='' loading='lazy' onerror='this.parentNode.remove()'><span class='gen'>生成イメージ</span></span>" : "") +
+        "<span class='ct'>" + c.text + "</span></button>";
+    });
+    html += "</div>";
+    render(html);
+
+    Array.prototype.forEach.call(app.querySelectorAll(".choice"), function (b) {
+      b.onclick = function () {
+        var c = cs[+b.getAttribute("data-k")], id = c.id;
+        state.picks.push({ time: s.time, id: id, text: c.text, img: c.img });
+        if (!evacuated && id === "evac") state.evacAt = i;
+        if (i + 1 < STEPS.length) step(i + 1); else reveal();
+      };
+    });
+  }
+
+  // ---- 実際に起きたこと ----
+  function reveal() {
+    var html = progress(3) +
+      hero("21_reveal", "<div class='clock'><span class='clock-time'>その後</span><span class='clock-sub'>地震から数十分後（到達時刻は場所によって異なる）</span></div>") +
+      "<div class='fact'><div class='fact-head'>記録　沿岸各地を津波が襲った</div><ul>" + REVEAL.facts.map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>" + srcMark(REVEAL.src) + "</div>" +
+      "<div class='compare'><div class='a'><div class='c'>14:49 第1報の予想（岩手県）</div><div class='n'>3m</div></div><div class='b'><div class='c'>田老で確認された痕跡の高さ</div><div class='n'>16.3m</div></div></div>" +
+      "<div class='question'>あなたの判断に、いちばん影響したものは？</div><div class='choices'>";
+    REASONS.forEach(function (r) { html += "<button class='choice' data-r='" + r + "'>" + r + "</button>"; });
+    html += "</div>";
+    render(html);
+    Array.prototype.forEach.call(app.querySelectorAll(".choice"), function (b) {
+      b.onclick = function () { state.reason = b.getAttribute("data-r"); result(); };
+    });
+  }
+
+  // ---- ふりかえり ----
+  function category() {
+    if (state.evacAt === 0) return "A";
+    if (state.evacAt !== null) return "B";
+    return "C";
+  }
+
+  function result() {
+    var cat = category();
+    var me = SURVEY.filter(function (x) { return x.key === cat; })[0];
+    var returned = state.picks.some(function (p) { return p.id === "return"; });
+
+    var html = progress(4) + "<h1>あなたの30分</h1><ul class='path'>";
+    state.picks.forEach(function (p) {
+      html += "<li><time>" + p.time + "</time>" + p.text +
+        (p.img ? "<img class='path-thumb' src='" + imgSrc(p.img) + "' alt='' onerror='this.remove()'>" : "") + "</li>";
+    });
+    html += "</ul>";
+
+    html += "<h2>あなたの判断は、次の分類に近い：「" + me.name + "」</h2><p>" + me.desc + "</p>";
+    if (cat === "C") html += "<div class='note'>このシミュレーションでは、あなたは15:14の時点でもまだ避難を始めていません。実際には、何かをしている最中に津波が迫り、そこから逃げた人たちがいました（下の「切迫避難」）。</div>";
+    if (returned) html += "<div class='note care'>あなたは一度避難したあと、家に戻ることを選びました。避難した場所から離れることが、どんな危険につながりうるか考えてみてください。</div>";
+
+    html += "<h2>実際に避難した人たちは、どう動いたか</h2><div class='bars'>";
+    SURVEY.forEach(function (x) {
+      html += "<div class='bar-row" + (x.key === cat ? " me" : "") + "'><span class='bar-name'>" + x.name + "</span><span class='bar-track'><span class='bar-fill' style='display:block;width:" + x.pct + "%'></span></span><span class='bar-pct'>" + x.pct + "%</span></div>";
+    });
+    html += "</div><p style='font-size:.85rem;color:var(--muted)'>内閣府・消防庁・気象庁による面接調査（2011年7月、岩手・宮城・福島で避難所や仮設住宅にいた870人）出典：[8]</p>";
+
+    html += "<div class='think'>このグラフは<b>「生き延びて、調査に答えた人」</b>の内訳です。亡くなった方々の行動は、このデータに含まれていません。だとすると、このグラフから言えること・言えないことは何だろう？</div>";
+    html += "<div class='think'>あなたの判断に影響したのは「" + state.reason + "」でした。現地では、ガイドの方に「あの日、何が判断を分けたのか」を聞いてみよう。</div>";
+
+    html += "<h2>修学旅行で、ここを確かめよう</h2>";
+    PLACES.forEach(function (p) {
+      html += "<div class='fact'><div class='fact-head' style='color:var(--ink)'>" + p.name + "</div><ul>" +
+        p.facts.map(function (f) { return "<li>" + f + "</li>"; }).join("") + "</ul>" +
+        "<div class='think' style='margin-bottom:0'>" + p.q + "</div></div>";
+    });
+
+    // CSV（クラス集計用）
+    var cols = ["分類", "14:46の判断", "14:49の判断", "15:14の判断", "影響したもの"];
+    var row = [me.name].concat(state.picks.map(function (p) { return p.text; })).concat([state.reason]);
+    var csv = row.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    html += "<h2>クラスのデータにしよう</h2><p>下の1行をコピーして、先生が用意したスプレッドシートに貼り付けてください。列の順番は「" + cols.join("／") + "」です。</p>" +
+      "<textarea class='csv' id='csv' rows='3' readonly>" + csv + "</textarea>" +
+      "<div class='btn-row'><button class='btn' id='copy'>コピーする</button><button class='btn ghost' id='again'>最初からやり直す</button></div>";
+
+    render(html);
+
+    document.getElementById("copy").onclick = function () {
+      var ta = document.getElementById("csv");
+      var btn = this;
+      function done() { btn.textContent = "コピーしました"; }
+      ta.select();
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand("copy"); done(); });
+        } else { document.execCommand("copy"); done(); }
+      } catch (e) { btn.textContent = "選択済み：Ctrl+C（長押し→コピー）でコピー"; }
+    };
+    document.getElementById("again").onclick = intro;
+  }
+
+  intro();
+})();
+</script>
