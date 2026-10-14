@@ -6,7 +6,6 @@
   ・Google Sites の「埋め込み」にそのまま貼り付けて使える単一HTML。
   ・表示する時刻・警報・観測値は公的資料に基づく（出典は画面下部）。
   ・生徒の状況（自宅にいる等）は仮の設定。創作した「事実」は含めない。
-  ・最後に1行の記録（CSV）が出るので、クラスのスプレッドシートに貼って集計できる。
   ============================================================
 -->
 <style>
@@ -103,7 +102,6 @@
   .compare .n { font-family: 'Roboto Mono', monospace; font-size: 1.6rem; font-weight: 500; color: var(--ink); }
   .compare .c { font-size: .8rem; color: var(--muted); }
 
-  .csv { width: 100%; font-family: 'Roboto Mono', monospace; font-size: .85rem; padding: .7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); resize: none; }
 
   .sources { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; }
   .sources ol { padding-left: 1.3rem; }
@@ -421,27 +419,10 @@
         "<div class='think' style='margin-bottom:0'>" + p.q + "</div></div>";
     });
 
-    // CSV（クラス集計用）
-    var cols = ["分類", "14:46の判断", "14:49の判断", "15:14の判断", "影響したもの"];
-    var row = [me.name].concat(state.picks.map(function (p) { return p.text; })).concat([state.reason]);
-    var csv = row.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
-    html += "<h2>クラスのデータにしよう</h2><p>下の1行をコピーして、先生が用意したスプレッドシートに貼り付けてください。列の順番は「" + cols.join("／") + "」です。</p>" +
-      "<textarea class='csv' id='csv' rows='3' readonly>" + csv + "</textarea>" +
-      "<div class='btn-row'><button class='btn' id='copy'>コピーする</button><button class='btn ghost' id='again'>最初からやり直す</button></div>";
+    html += "<div class='btn-row'><button class='btn ghost' id='again'>最初からやり直す</button></div>";
 
     render(html);
 
-    document.getElementById("copy").onclick = function () {
-      var ta = document.getElementById("csv");
-      var btn = this;
-      function done() { btn.textContent = "コピーしました"; }
-      ta.select();
-      try {
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand("copy"); done(); });
-        } else { document.execCommand("copy"); done(); }
-      } catch (e) { btn.textContent = "選択済み：Ctrl+C（長押し→コピー）でコピー"; }
-    };
     document.getElementById("again").onclick = intro;
   }
 
